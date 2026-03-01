@@ -1,0 +1,617 @@
+#include <iostream>       // Basic input/output library
+#include <string>         // String handling library
+#include <vector>         // Dynamic array library
+#include <list>           // Linked list library
+using namespace std;      // Use standard namespace
+
+// ================== BST Product ==================
+// Binary Search Tree to store products sorted by price
+
+struct Product
+{
+    int barcode;          // Unique product barcode
+    string name;          // Product name
+    float price;          // Product price
+    string expiry_Date;   // Expiration date
+};
+
+struct Node
+{
+    Product data;         // Product data stored in node
+    Node* left;           // Pointer to left child (lower price)
+    Node* right;          // Pointer to right child (higher or equal price)
+
+    Node(const Product& p) // Node constructor
+    {
+        data = p;         // Store product data
+        left = nullptr;   // Initialize left child
+        right = nullptr;  // Initialize right child
+    }
+};
+
+class ProductBST
+{
+private:
+    Node* root;           // Pointer to tree root
+    int node_count;       // Number of products in tree
+
+    // Recursive helper for insertion
+    Node* insertRec(Node* node, const Product& p)
+    {
+        if (node == nullptr) // Found empty spot
+        {
+            node_count++;    // Increment count
+            return new Node(p); // Create new node
+        }
+
+        // Go left if price is lower
+        if (p.price < node->data.price)
+        {
+            node->left = insertRec(node->left, p);
+        }
+        else // Go right if price is higher or equal
+        {
+            node->right = insertRec(node->right, p);
+        }
+
+        return node;
+    }
+
+    // Find minimum price node (leftmost)
+    Node* findMin(Node* node) const
+    {
+        if (node == nullptr) return nullptr;
+        while (node->left != nullptr)
+        {
+            node = node->left;
+        }
+        return node;
+    }
+
+    // Find maximum price node (rightmost)
+    Node* findMax(Node* node) const
+    {
+        if (node == nullptr) return nullptr;
+        while (node->right != nullptr)
+        {
+            node = node->right;
+        }
+        return node;
+    }
+
+    // Recursive remove by price
+    Node* removeRec(Node* node, float price, bool& removed)
+    {
+        if (node == nullptr) return nullptr;
+
+        if (price < node->data.price)
+        {
+            node->left = removeRec(node->left, price, removed);
+        }
+        else if (price > node->data.price)
+        {
+            node->right = removeRec(node->right, price, removed);
+        }
+        else
+        {
+            removed = true;
+
+            // Case 1: leaf node
+            if (node->left == nullptr && node->right == nullptr)
+            {
+                delete node;
+                node_count--;
+                return nullptr;
+            }
+            // Case 2: one child
+            else if (node->left == nullptr)
+            {
+                Node* temp = node->right;
+                delete node;
+                node_count--;
+                return temp;
+            }
+            else if (node->right == nullptr)
+            {
+                Node* temp = node->left;
+                delete node;
+                node_count--;
+                return temp;
+            }
+            // Case 3: two children
+            else
+            {
+                Node* minNode = findMin(node->right);
+                node->data = minNode->data;
+                node->right = removeRec(node->right, minNode->data.price, removed);
+            }
+        }
+
+        return node;
+    }
+
+    // Recursive search by price
+    Node* findRec(Node* node, float price) const
+    {
+        if (node == nullptr) return nullptr;
+
+        if (price == node->data.price) return node;
+        else if (price < node->data.price) return findRec(node->left, price);
+        else return findRec(node->right, price);
+    }
+
+    // In-order print
+    void inOrderPrint(Node* node) const
+    {
+        if (node == nullptr) return;
+
+        inOrderPrint(node->left);
+
+        cout << "Product: " << node->data.name
+            << " | Price: " << node->data.price
+            << " | Barcode: " << node->data.barcode
+            << " | Expiry: " << node->data.expiry_Date << endl;
+
+        inOrderPrint(node->right);
+    }
+
+    // Tree height
+    int treeHeight(Node* node) const
+    {
+        if (node == nullptr) return 0;
+
+        int leftH = treeHeight(node->left);
+        int rightH = treeHeight(node->right);
+
+        return (leftH > rightH ? leftH : rightH) + 1;
+    }
+
+    // Clear tree
+    void clearRec(Node* node)
+    {
+        if (node == nullptr) return;
+
+        clearRec(node->left);
+        clearRec(node->right);
+        delete node;
+    }
+
+public:
+    ProductBST() { root = nullptr; node_count = 0; }
+    ~ProductBST() { clearRec(root); }
+
+    bool insert(const Product& p)
+    {
+        if (p.barcode <= 0 || p.name.empty() || p.price < 0 || p.expiry_Date.empty())
+        {
+            cout << "Invalid product data, insertion failed.\n";
+            return false;
+        }
+
+        int old_count = node_count;
+        root = insertRec(root, p);
+        return node_count > old_count;
+    }
+
+    bool remove(float price)
+    {
+        bool removed = false;
+        root = removeRec(root, price, removed);
+        return removed;
+    }
+
+    Product* findProductByPrice(float price) const
+    {
+        Node* node = findRec(root, price);
+        if (node != nullptr) return &(node->data);
+        return nullptr;
+    }
+
+    void displaySorted() const
+    {
+        cout << "\n== BST Products (Sorted by Price) ==\n";
+        if (root == nullptr)
+        {
+            cout << "No products in BST.\n";
+            return;
+        }
+        inOrderPrint(root);
+    }
+
+    void displayStatistics() const
+    {
+        cout << "\n===== BST Statistics =====\n";
+        cout << "Number of products: " << node_count << endl;
+        cout << "Approx. tree height: " << treeHeight(root) << endl;
+
+        Node* cheap = findMin(root);
+        Node* expensive = findMax(root);
+
+        if (cheap != nullptr)
+            cout << "Cheapest product: " << cheap->data.name << " - " << cheap->data.price << endl;
+        if (expensive != nullptr)
+            cout << "Most expensive product: " << expensive->data.name << " - " << expensive->data.price << endl;
+    }
+
+    bool isEmpty() const { return root == nullptr; }
+    int size() const { return node_count; }
+};
+
+// ================== Queue ==================
+// Customer queue (FIFO)
+
+struct QueueNode {
+    int customerID;
+    QueueNode* next;
+    QueueNode(int id) : customerID(id), next(nullptr) {}
+};
+
+class CustomerQueue {
+private:
+    QueueNode* front;
+    QueueNode* rear;
+
+public:
+    CustomerQueue() : front(nullptr), rear(nullptr) {}
+    ~CustomerQueue() {
+        while (front != nullptr) {
+            QueueNode* temp = front;
+            front = front->next;
+            delete temp;
+        }
+        rear = nullptr;
+    }
+
+    bool isEmpty() const { return front == nullptr; }
+
+    void enqueue(int customerID) {
+        QueueNode* newNode = new QueueNode(customerID);
+        if (isEmpty()) {
+            front = rear = newNode;
+        } else {
+            rear->next = newNode;
+            rear = newNode;
+        }
+        cout << customerID << " enqueued\n";
+    }
+
+    int dequeue() {
+        if (isEmpty()) { cout << "Queue is empty\n"; return -1; }
+        QueueNode* temp = front;
+        int dequeuedID = temp->customerID;
+        front = front->next;
+        if (front == nullptr) rear = nullptr;
+        delete temp;
+        cout << dequeuedID << " dequeued\n";
+        return dequeuedID;
+    }
+
+    void displayQueue() const {
+        if (isEmpty()) { cout << "Queue is empty\n"; return; }
+        QueueNode* current = front;
+        while (current != nullptr) {
+            cout << current->customerID << " ";
+            current = current->next;
+        }
+        cout << endl;
+    }
+};
+
+// ================== Stack + small product ==================
+
+struct product
+{
+    string name, barcode;
+    float price;
+};
+
+template<class t>
+class stack {
+private:
+    struct node
+    {
+        t item;
+        node* next;
+    };
+    node* top, * cur;
+public:
+    stack() { top = NULL; }
+    ~stack() {
+        while (!is_empty()) pop();
+    }
+
+    void push(t NewItem)
+    {
+        node* newitemptr = new node;
+        newitemptr->item = NewItem;
+        newitemptr->next = top;
+        top = newitemptr;
+    }
+
+    bool is_empty() { return top == NULL; }
+
+    void pop()
+    {
+        if (is_empty()) cout << "No item to pop\n";
+        else {
+            node* temp = top;
+            top = top->next;
+            delete temp;
+        }
+    }
+
+    void pop(t& stacktop)
+    {
+        if (is_empty()) cout << "No item to pop\n";
+        else {
+            stacktop = top->item;
+            node* temp = top;
+            top = top->next;
+            delete temp;
+        }
+    }
+
+    t peek()
+    {
+        if (is_empty()) { cout << "No item\n"; return t(); }
+        return top->item;
+    }
+
+    void print()
+    {
+        cur = top;
+        cout << "Items in cart: [";
+        while (cur != NULL)
+        {
+            cout << cur->item.name << " ";
+            cur = cur->next;
+        }
+        cout << "]" << endl;
+    }
+};
+
+// Customer struct
+struct customer
+{
+    int id;
+    stack<product> mycart;
+};
+
+// ================== Linked List cart ==================
+
+struct cart_Node {
+    product item;
+    cart_Node* link;
+    cart_Node(product x) { item = x; link = NULL; }
+};
+
+struct cart {
+    cart_Node* head;
+    cart() { head = NULL; }
+
+    void addItem(product x) {
+        cart_Node* newItem = new cart_Node(x);
+        newItem->link = head;
+        head = newItem;
+    }
+
+    void removeItem(string barcode) {
+        if (!head) return;
+        if (head->item.barcode == barcode) {
+            cart_Node* check = head;
+            head = head->link;
+            delete check;
+            return;
+        }
+
+        cart_Node* currentItem = head;
+        while (currentItem->link != nullptr && currentItem->link->item.barcode != barcode)
+            currentItem = currentItem->link;
+
+        if (currentItem->link != nullptr && currentItem->link->item.barcode == barcode) {
+            cart_Node* toDelete = currentItem->link;
+            currentItem->link = toDelete->link;
+            delete toDelete;
+        }
+    }
+
+    void print() {
+        cart_Node* current = head;
+        if (!current) { cout << "Cart empty\n"; return; }
+        cout << current->item.name << endl;
+        cout << current->item.barcode << endl;
+        cout << current->item.price << endl;
+        current = current->link;
+    }
+};
+
+// ================== Hash Table ==================
+
+struct ProductHT {
+    int barcode;
+    string name;
+    double price;
+    int quantity;
+};
+
+class HashTable {
+private:
+    const static int TABLE_SIZE = 10;
+    vector<list<ProductHT>> table;
+
+    int hashFunction(int barcode) { return barcode % TABLE_SIZE; }
+
+public:
+    HashTable() : table(TABLE_SIZE) {}
+
+    void insert(ProductHT p) {
+        int index = hashFunction(p.barcode);
+        table[index].push_back(p);
+    }
+
+    ProductHT* search(int barcode) {
+        int index = hashFunction(barcode);
+        for (auto& p : table[index]) {
+            if (p.barcode == barcode) return &p;
+        }
+        return nullptr;
+    }
+
+    bool remove(int barcode) {
+        int index = hashFunction(barcode);
+        for (auto it = table[index].begin(); it != table[index].end(); ++it) {
+            if (it->barcode == barcode) { table[index].erase(it); return true; }
+        }
+        return false;
+    }
+
+    bool update(int barcode, string newName, double newPrice, int newQuantity) {
+        int index = hashFunction(barcode);
+        for (auto& p : table[index]) {
+            if (p.barcode == barcode) {
+                p.name = newName;
+                p.price = newPrice;
+                p.quantity = newQuantity;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void print() {
+        for (int i = 0; i < TABLE_SIZE; ++i) {
+            cout << "Index " << i << ": ";
+            for (const auto& product : table[i])
+                cout << "(" << product.barcode << ", " << product.name << ", " << product.price << ", " << product.quantity << ") ";
+            cout << endl;
+        }
+    }
+};
+
+// ================== MAIN + MENU ==================
+
+int main()
+{
+    ProductBST bst;
+    HashTable ht;
+    customer c1;
+    cart mycart;
+    CustomerQueue q;
+
+    ProductHT products[] = {
+        {123, "Apple", 10.5, 20},
+        {124, "Banana", 5.25, 30},
+        {125, "Orange", 7.75, 15},
+        {126, "Milk", 12.75, 18},
+        {127, "Eggs", 22.50, 10},
+        {128, "Fish", 8.90, 25},
+        {129, "Cola", 30.00, 7},
+        {130, "Water", 14.20, 40},
+        {141, "Meat", 9.60, 16},
+        {1042, "Kiwi", 11.30, 12},
+        {133, "Papaya", 19.50, 9},
+        {1344, "Blueberry", 15.80, 22}
+    };
+    int prodCount = sizeof(products) / sizeof(products[0]);
+
+    for (int i = 0; i < prodCount; i++) {
+        ht.insert(products[i]);
+        Product p;
+        p.barcode = products[i].barcode;
+        p.name = products[i].name;
+        p.price = (float)products[i].price;
+        p.expiry_Date = "N/A";
+        bst.insert(p);
+    }
+
+    c1.id = 1;
+
+    int choice = -1;
+    while (choice != 6)
+    {
+        cout << "\n     *** MENU ***\n";
+        cout << "1- Show all products\n";
+        cout << "2- Choose product by barcode & add to cart\n";
+        cout << "3- Show shopping cart\n";
+        cout << "4- Display BST products\n";
+        cout << "5- Test Queue\n";
+        cout << "6- Exit\n";
+        cout << "Your choice: ";
+        cin >> choice;
+
+        if (choice == 1) ht.print();
+        else if (choice == 2)
+        {
+            string cont = "yes";
+            bool firstTime = true;
+
+            while (cont == "yes" || cont == "Yes" || cont == "y" || cont == "Y")
+            {
+                if (firstTime) { cout << "\nAvailable products:\n"; ht.print(); firstTime = false; }
+
+                int code;
+                cout << "Enter product barcode: ";
+                cin >> code;
+
+                ProductHT* found = ht.search(code);
+                if (found) {
+                    cout << "\nSelected product:\n";
+                    cout << "Name: " << found->name << "\nPrice: " << found->price << "\nQuantity: " << found->quantity << "\n";
+
+                    product smallP;
+                    smallP.name = found->name;
+                    smallP.barcode = to_string(found->barcode);
+                    smallP.price = (float)found->price;
+
+                    c1.mycart.push(smallP);
+                    mycart.addItem(smallP);
+
+                    cout << "\nProduct added to cart.\n";
+                }
+                else {
+                    cout << "\nProduct not found.\n";
+                    cout << "Do you want to add it to BST? (yes/no): ";
+                    string ans; cin >> ans;
+                    if (ans == "yes" || ans == "Yes" || ans == "Y" || ans == "y")
+                    {
+                        Product newP;
+                        cout << "Enter barcode: "; cin >> newP.barcode;
+                        cout << "Enter price: "; cin >> newP.price;
+                        cin.ignore();
+                        cout << "Enter name: "; getline(cin, newP.name);
+                        cout << "Enter expiry date: "; getline(cin, newP.expiry_Date);
+
+                        if (bst.insert(newP)) cout << "Product added to BST.\n";
+                        else cout << "Failed to add product to BST.\n";
+                    }
+                    else cout << "Thanks, maybe later.\n";
+                }
+
+                cout << "\nAdd another product? (yes/no): ";
+                cin >> cont;
+            }
+        }
+        else if (choice == 3)
+        {
+            c1.mycart.print();
+            mycart.print();
+            float total = 0;
+            cart_Node* cur = mycart.head;
+            while (cur != NULL) { total += cur->item.price; cur = cur->link; }
+            cout << "Total price = " << total << endl;
+        }
+        else if (choice == 4) { bst.displaySorted(); bst.displayStatistics(); }
+        else if (choice == 5)
+        {
+            cout << "Queue test:\n";
+            q.enqueue(101); q.enqueue(102); q.enqueue(103);
+            q.displayQueue();
+            q.dequeue();
+            q.displayQueue();
+        }
+        else if (choice == 6) cout << "Thanks for using the program.\n";
+        else cout << "Invalid choice.\n";
+    }
+
+    return 0;
+}
